@@ -8,55 +8,75 @@ import com.alipay.api.request.AlipayTradePagePayRequest;
 import com.alipay.api.request.AlipayTradeRefundRequest;
 import com.alipay.api.response.AlipayTradeFastpayRefundQueryResponse;
 import com.alipay.api.response.AlipayTradeRefundResponse;
+import com.song.service.OrderService;
 import com.song.utils.AlipayConfig;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 /**
  * Created by Song on 2017/11/6.
  */
 @Controller
+@Slf4j
+@Api(value = "alipay支付类")
 public class AlipayController {
+
+    @Resource(name = "orderService")
+    public OrderService orderService;
 
     @GetMapping("/alipay/pay")
     @ResponseBody
-    public String pay(HttpServletResponse httpResponse) throws Exception {
-
-        AlipayClient alipayClient = new DefaultAlipayClient(AlipayConfig.gatewayUrl, AlipayConfig.app_id, AlipayConfig.merchant_private_key, "json", AlipayConfig.charset, AlipayConfig.alipay_public_key, AlipayConfig.sign_type);
-        AlipayTradePagePayRequest alipayRequest = new AlipayTradePagePayRequest();//创建API对应的request
-        //创建API对应的request
-        alipayRequest.setReturnUrl(AlipayConfig.return_url);
-        alipayRequest.setNotifyUrl(AlipayConfig.notify_url);//在公共参数中设置回跳和通知地址
-        alipayRequest.setBizContent("{" +
-                "    \"out_trade_no\":\"20170320910101002\"," +
-                "    \"product_code\":\"FAST_INSTANT_TRADE_PAY\"," +
-                "    \"total_amount\":0.01," +
-                "    \"subject\":\"Iphone6 16G\"," +
-                "    \"body\":\"Iphone6 16G\"," +
-                "    \"passback_params\":\"merchantBizType%3d3C%26merchantBizNo%3d2016010101111\"," +
-                "    \"extend_params\":{" +
-                "    \"sys_service_provider_id\":\"2088511833207846\"" +
-                "    }" +
-                "  }");//填充业务参数
-        String form = "";
+    @ApiOperation(value = "电脑网站支付")
+    @ApiParam(name = "订单id", required = false, value = "orderId")
+    public String pay(HttpServletResponse httpResponse,
+                      @ApiParam(name = "orderId", value = "订单id") Integer orderId) {
         try {
-            form = alipayClient.pageExecute(alipayRequest).getBody(); //调用SDK生成表单
-        } catch (AlipayApiException e) {
-            e.printStackTrace();
+            AlipayClient alipayClient = new DefaultAlipayClient(AlipayConfig.gatewayUrl, AlipayConfig.app_id, AlipayConfig.merchant_private_key, "json", AlipayConfig.charset, AlipayConfig.alipay_public_key, AlipayConfig.sign_type);
+            AlipayTradePagePayRequest alipayRequest = new AlipayTradePagePayRequest();//创建API对应的request
+            //创建API对应的request
+            alipayRequest.setReturnUrl(AlipayConfig.return_url);
+            alipayRequest.setNotifyUrl(AlipayConfig.notify_url);//在公共参数中设置回跳和通知地址
+            /*alipayRequest.setBizContent("{" +
+                    "    \"out_trade_no\":\"20170320910101002\"," +
+                    "    \"product_code\":\"FAST_INSTANT_TRADE_PAY\"," +
+                    "    \"total_amount\":0.01," +
+                    "    \"subject\":\"Iphone6 16G\"," +
+                    "    \"body\":\"Iphone6 16G\"," +
+                    "    \"passback_params\":\"merchantBizType%3d3C%26merchantBizNo%3d2016010101111\"," +
+                    "    \"extend_params\":{" +
+                    "    \"sys_service_provider_id\":\"2088511833207846\"" +
+                    "    }" +
+                    "  }");*///填充业务参数
+            alipayRequest.setBizContent(orderService.getAlipayOrderBizContent(orderId));
+            String form = "";
+            try {
+                form = alipayClient.pageExecute(alipayRequest).getBody(); //调用SDK生成表单
+            } catch (AlipayApiException e) {
+                e.printStackTrace();
+            }
+            httpResponse.setContentType("text/html;charset=" + AlipayConfig.charset);
+            httpResponse.getWriter().write(form);//直接将完整的表单html输出到页面
+            httpResponse.getWriter().flush();
+            httpResponse.getWriter().close();
+            return null;
+        } catch (IOException e) {
+            log.error("", e);
+            return null;
         }
-        httpResponse.setContentType("text/html;charset=" + AlipayConfig.charset);
-        httpResponse.getWriter().write(form);//直接将完整的表单html输出到页面
-        httpResponse.getWriter().flush();
-        httpResponse.getWriter().close();
-        return null;
     }
 
     @GetMapping("/alipay/refound")
     @ResponseBody
-    public String refound() throws Exception {
+    public String refound(Long orderId) throws Exception {
         AlipayClient alipayClient = new DefaultAlipayClient(AlipayConfig.gatewayUrl, AlipayConfig.app_id, AlipayConfig.merchant_private_key, "json", AlipayConfig.charset, AlipayConfig.alipay_public_key, AlipayConfig.sign_type);
         AlipayTradeRefundRequest request = new AlipayTradeRefundRequest();
         request.setBizContent("{" +
@@ -81,7 +101,7 @@ public class AlipayController {
 
     @GetMapping("/alipay/refoundQuery")
     @ResponseBody
-    public String refoundQuery() throws Exception{//这个方法测试失败了
+    public String refoundQuery() throws Exception {//这个方法测试失败了
         AlipayClient alipayClient = new DefaultAlipayClient(AlipayConfig.gatewayUrl, AlipayConfig.app_id, AlipayConfig.merchant_private_key, "json", AlipayConfig.charset, AlipayConfig.alipay_public_key, AlipayConfig.sign_type);
         AlipayTradeFastpayRefundQueryRequest request = new AlipayTradeFastpayRefundQueryRequest();
         request.setBizContent("{" +
@@ -90,7 +110,7 @@ public class AlipayController {
                 "\"out_request_no\":\"HZ01RF001\"" +//请求退款时的请求号
                 "}");
         AlipayTradeFastpayRefundQueryResponse response = alipayClient.execute(request);
-        if(response.isSuccess()){
+        if (response.isSuccess()) {
             System.out.println("调用成功");
         } else {
             System.out.println("调用失败");

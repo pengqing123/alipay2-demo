@@ -2,6 +2,8 @@ package com.song.web.controller;
 
 import com.alipay.api.internal.util.AlipaySignature;
 import com.song.utils.AlipayConfig;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,10 +18,12 @@ import java.util.Map;
  * Created by Song on 2017/11/6.
  */
 @Controller
+@Api(value = "alipay回调类")
 public class AlipayCallBackController {
 
     @PostMapping("/alipay/notify")
     @ResponseBody
+    @ApiOperation(value = "alipay支付回调notify_url接口")
     public String notify(HttpServletRequest request) throws Exception {
 
         //获取支付宝POST过来反馈信息
@@ -88,6 +92,7 @@ public class AlipayCallBackController {
     }
 
     @GetMapping("/alipay/return")
+    @ApiOperation(value = "alipay支付回调return_url接口")
     public String payReturn(HttpServletRequest request) throws Exception{
 //获取支付宝GET过来反馈信息
         Map<String,String> params = new HashMap<String,String>();
